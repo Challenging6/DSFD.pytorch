@@ -1,9 +1,3 @@
-#-*- coding:utf-8 -*-
-
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-
 import os
 from easydict import EasyDict
 import numpy as np
@@ -60,15 +54,12 @@ _C.NEG_POS_RATIOS = 3
 _C.NUM_CLASSES = 2
 
 # dataset config
-_C.HOME = '/home/lijun/data/'
+_C.HOME = '../data'
 
 
 # face config
 _C.FACE = EasyDict()
 _C.FACE.TRAIN_FILE = './data/face_train.txt'
 _C.FACE.VAL_FILE = './data/face_val.txt'
-_C.FACE.FDDB_DIR = '/home/lijun/data/FDDB'
-_C.FACE.WIDER_DIR = '/home/lijun/data/WIDER'
-_C.FACE.AFW_DIR = '/home/lijun/data/AFW'
-_C.FACE.PASCAL_DIR = '/home/lijun/data/PASCAL_FACE'
+_C.FACE.WIDER_DIR = '../data/wider_face'
 _C.FACE.OVERLAP_THRESH = 0.35

@@ -1,20 +1,11 @@
-#-*- coding:utf-8 -*-
-
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-
 import os
 import time
 import torch
 import argparse
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.init as init
 import torch.utils.data as data
 import numpy as np
-from torch.autograd import Variable
-import torch.backends.cudnn as cudnn
 
 from data.config import cfg
 from layers.modules import MultiBoxLoss
@@ -125,7 +116,6 @@ def train():
         if args.multigpu:
             net = torch.nn.DataParallel(dsfd_net)
         net = net.cuda()
-        cudnn.benckmark = True
 
     if not args.resume:
         print('Initializing weights...')
@@ -155,12 +145,11 @@ def train():
         losses = 0
         for batch_idx, (images, targets) in enumerate(train_loader):
             if args.cuda:
-                images = Variable(images.cuda())
-                targets = [Variable(ann.cuda(), volatile=True)
-                           for ann in targets]
+                images = images.cuda()
+                targets = [ann.cuda() for ann in targets]
             else:
-                images = Variable(images)
-                targets = [Variable(ann, volatile=True) for ann in targets]
+                images = images
+                targets = [ann for ann in targets]
 
             if iteration in cfg.LR_STEPS:
                 step_index += 1
@@ -209,12 +198,11 @@ def val(epoch, net, dsfd_net, criterion):
     t1 = time.time()
     for batch_idx, (images, targets) in enumerate(val_loader):
         if args.cuda:
-            images = Variable(images.cuda())
-            targets = [Variable(ann.cuda(), volatile=True)
-                       for ann in targets]
+            images = images.cuda()
+            targets = [ann.cuda() for ann in targets]
         else:
-            images = Variable(images)
-            targets = [Variable(ann, volatile=True) for ann in targets]
+            images = images
+            targets = [ann for ann in targets]
 
         out = net(images)
         loss_l_pa1l, loss_c_pal1 = criterion(out[:3], targets)

@@ -1,8 +1,3 @@
-#-*- coding:utf-8 -*-
-
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
 
 import os
 import numpy as np
@@ -11,7 +6,6 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
-from torch.autograd import Variable
 
 from layers import *
 from data.config import cfg
@@ -207,10 +201,10 @@ class DSFD(nn.Module):
                                for o in conf_pal2], 1)
 
         priorbox = PriorBox(size, features_maps, cfg, pal=1)
-        self.priors_pal1 = Variable(priorbox.forward(), volatile=True)
+        self.priors_pal1 = priorbox.forward()
 
         priorbox = PriorBox(size, features_maps, cfg, pal=2)
-        self.priors_pal2 = Variable(priorbox.forward(), volatile=True)
+        self.priors_pal2 = priorbox.forward()
 
         if self.phase == 'test':
             output = self.detect(
@@ -355,6 +349,6 @@ def build_net_vgg(phase, num_classes=2):
     return DSFD(phase, base, extras, fem, head1, head2, num_classes)
 
 if __name__ == '__main__':
-    inputs = Variable(torch.randn(1, 3, 640, 640))
+    inputs = torch.randn(1, 3, 640, 640)
     net = build_net('train', 2)
     out = net(inputs)

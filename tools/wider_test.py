@@ -1,15 +1,8 @@
-#-*- coding:utf-8 -*-
-
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-
 import os
 import torch
 import argparse
 import torch.nn as nn
 import torch.utils.data as data
-import torch.backends.cudnn as cudnn
 import torchvision.transforms as transforms
 import os.path as osp
 
@@ -188,7 +181,6 @@ if __name__ == '__main__':
 
     if use_cuda:
         net.cuda()
-        cudnn.benckmark = True
 
     #transform = S3FDBasicTransform(cfg.INPUT_SIZE, cfg.MEANS)
 
