@@ -1,5 +1,5 @@
 from .prior_box import PriorBox 
-from detection import Detect
+from .detection import Detector
 
-__all__=['Detect','PriorBox']
+__all__=['Detector','PriorBox']
 

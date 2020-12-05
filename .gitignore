@@ -1,6 +1,9 @@
 *.pyc
 *.pth
 log/
+weights/
+img/
+tmp/
 eval_tools/s3fd_val/
 eval_tools/sfd_val/
 eval_tools/dsfd_val/

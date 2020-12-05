@@ -104,13 +104,13 @@ def train():
         print('Resuming training, loading {}...'.format(args.resume))
         start_epoch = net.load_weights(args.resume)
         iteration = start_epoch * per_epoch_size
-    else:
-        base_weights = torch.load(args.save_folder + basenet)
-        print('Load base network {}'.format(args.save_folder + basenet))
-        if args.model == 'vgg':
-            net.vgg.load_state_dict(base_weights)
-        else:
-            net.resnet.load_state_dict(base_weights)
+    # else:
+    #     base_weights = torch.load(args.save_folder + basenet)
+    #     print('Load base network {}'.format(args.save_folder + basenet))
+    #     if args.model == 'vgg':
+    #         net.vgg.load_state_dict(base_weights)
+    #     else:
+    #         net.resnet.load_state_dict(base_weights)
 
     if args.cuda:
         if args.multigpu:
@@ -166,7 +166,7 @@ def train():
             loss.backward()
             optimizer.step()
             t1 = time.time()
-            losses += loss.data[0]
+            losses += loss.item()
 
             if iteration % 10 == 0:
                 tloss = losses / (batch_idx + 1)
@@ -174,9 +174,9 @@ def train():
                 print('epoch:' + repr(epoch) + ' || iter:' +
                       repr(iteration) + ' || Loss:%.4f' % (tloss))
                 print('->> pal1 conf loss:{:.4f} || pal1 loc loss:{:.4f}'.format(
-                    loss_c_pal1.data[0], loss_l_pa1l.data[0]))
+                    loss_c_pal1.item(), loss_l_pa1l.item()))
                 print('->> pal2 conf loss:{:.4f} || pal2 loc loss:{:.4f}'.format(
-                    loss_c_pal2.data[0], loss_l_pa12.data[0]))
+                    loss_c_pal2.item(), loss_l_pa12.item()))
                 print('->>lr:{}'.format(optimizer.param_groups[0]['lr']))
 
             if iteration != 0 and iteration % 5000 == 0:

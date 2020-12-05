@@ -2,6 +2,7 @@ import os
 import torch
 import argparse
 import torch.nn as nn
+from torch.nn import functional as F 
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
@@ -9,6 +10,7 @@ import cv2
 import time
 import numpy as np
 from PIL import Image
+from layers import *
 
 from data.config import cfg
 from models.factory import build_net
@@ -25,7 +27,7 @@ parser.add_argument('--save_dir',
                     help='Directory for detect result')
 parser.add_argument('--model',
                     type=str,
-                    default='weights/dsfd_face.pth', help='trained model')
+                    default='weights/dsfd_vgg_0.880.pth', help='trained model')
 parser.add_argument('--thresh',
                     default=0.4, type=float,
                     help='Final confidence threshold')
@@ -42,6 +44,21 @@ if use_cuda:
 else:
     torch.set_default_tensor_type('torch.FloatTensor')
 
+detector = Detector(cfg)
+
+def post_process(output):
+
+    loc_pal2, conf_pal2, priors_pal2 = output[3], output[4], output[5]
+
+    loc_pal2 = loc_pal2.view(loc_pal2.size(0), -1, 4)
+    conf_pal2 = conf_pal2.view(conf_pal2.size(0), -1, cfg.NUM_CLASSES)
+    conf_pal2 = F.softmax(conf_pal2,dim=2)
+    priors_pal2 = priors_pal2.type(type(torch.Tensor()))
+
+    y = detector.detect(loc_pal2, conf_pal2, priors_pal2)
+    return y 
+
+    
 
 def detect(net, img_path, thresh):
     img = Image.open(img_path)
@@ -64,16 +81,22 @@ def detect(net, img_path, thresh):
     if use_cuda:
         x = x.cuda()
     t1 = time.time()
-    y = net(x)
+    with torch.no_grad():
+        output = net(x)
+        y = post_process(output)
+
+
+
     detections = y.data
     scale = torch.Tensor([img.shape[1], img.shape[0],
                           img.shape[1], img.shape[0]])
 
     img = cv2.imread(img_path, cv2.IMREAD_COLOR)
 
+   # print(detections.shape)
     for i in range(detections.size(1)):
         j = 0
-        while detections[0, i, j, 0] >= thresh:
+        while j < detections.size(2) and detections[0, i, j, 0] >= thresh:
             score = detections[0, i, j, 0]
             pt = (detections[0, i, j, 1:] * scale).cpu().numpy().astype(int)
             left_up, right_bottom = (pt[0], pt[1]), (pt[2], pt[3])

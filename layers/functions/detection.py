@@ -1,10 +1,10 @@
 import torch
 
 from ..bbox_utils import decode, nms
-from torch.autograd import Function
 
 
-class Detect(Function):
+
+class Detector():
     """At test time, Detect is the final layer of SSD.  Decode location preds,
     apply non-maximum suppression to location predictions based on conf
     scores and threshold to a top_k number of output predictions for both
@@ -19,7 +19,8 @@ class Detect(Function):
         self.variance = cfg.VARIANCE
         self.nms_top_k = cfg.NMS_TOP_K
 
-    def forward(self, loc_data, conf_data, prior_data):
+
+    def detect(self, loc_data, conf_data, prior_data):
         """
         Args:
             loc_data: (tensor) Loc preds from loc layers
@@ -56,8 +57,7 @@ class Detect(Function):
                     continue
                 l_mask = c_mask.unsqueeze(1).expand_as(boxes)
                 boxes_ = boxes[l_mask].view(-1, 4)
-                ids, count = nms(
-                    boxes_, scores, self.nms_thresh, self.nms_top_k)
+                ids, count = nms(boxes_, scores, self.nms_thresh, self.nms_top_k)
                 count = count if count < self.top_k else self.top_k
 
                 output[i, cl, :count] = torch.cat((scores[ids[:count]].unsqueeze(1),
