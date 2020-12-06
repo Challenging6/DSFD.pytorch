@@ -198,10 +198,6 @@ class DSFD(nn.Module):
         self.loc_pal2 = nn.ModuleList(head2[0])
         self.conf_pal2 = nn.ModuleList(head2[1])
 
-        if self.phase == 'test':
-            self.softmax = nn.Softmax(dim=-1)
-            self.detect = Detect(cfg)
-
     def _upsample_prod(self, x, y):
         _, _, H, W = y.size()
         return F.upsample(x, size=(H, W), mode='bilinear') * y
@@ -279,22 +275,14 @@ class DSFD(nn.Module):
         priorbox = PriorBox(size, features_maps, cfg, pal=2)
         self.priors_pal2 = priorbox.forward()
 
-        if self.phase == 'test':
-            output = self.detect(
-                loc_pal2.view(loc_pal2.size(0), -1, 4),
-                self.softmax(conf_pal2.view(conf_pal2.size(0), -1,
-                                            self.num_classes)),                # conf preds
-                self.priors_pal2.type(type(x.data))
-            )
 
-        else:
-            output = (
-                loc_pal1.view(loc_pal1.size(0), -1, 4),
-                conf_pal1.view(conf_pal1.size(0), -1, self.num_classes),
-                self.priors_pal1,
-                loc_pal2.view(loc_pal2.size(0), -1, 4),
-                conf_pal2.view(conf_pal2.size(0), -1, self.num_classes),
-                self.priors_pal2)
+        output = (
+            loc_pal1.view(loc_pal1.size(0), -1, 4),
+            conf_pal1.view(conf_pal1.size(0), -1, self.num_classes),
+            self.priors_pal1,
+            loc_pal2.view(loc_pal2.size(0), -1, 4),
+            conf_pal2.view(conf_pal2.size(0), -1, self.num_classes),
+            self.priors_pal2)
         return output
 
     def load_weights(self, base_file):
@@ -311,8 +299,8 @@ class DSFD(nn.Module):
             print('Sorry only .pth and .pkl files supported.')
         return epoch
 
- #   def xavier(self, param):
- #       init.xavier_uniform(param)
+    # def xavier(self, param):
+    #     init.xavier_uniform(param)
 
     def weights_init(self, m):
         if isinstance(m, nn.Conv2d):

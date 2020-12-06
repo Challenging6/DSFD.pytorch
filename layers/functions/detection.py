@@ -1,5 +1,5 @@
 import torch
-
+from torch.nn import functional as F 
 from ..bbox_utils import decode, nms
 
 
@@ -19,8 +19,19 @@ class Detector():
         self.variance = cfg.VARIANCE
         self.nms_top_k = cfg.NMS_TOP_K
 
+    def detect(self, model_output):
 
-    def detect(self, loc_data, conf_data, prior_data):
+        loc_pal2, conf_pal2, priors_pal2 = model_output[3], model_output[4], model_output[5]
+
+        loc_pal2 = loc_pal2.view(loc_pal2.size(0), -1, 4)
+        conf_pal2 = conf_pal2.view(conf_pal2.size(0), -1, self.num_classes)
+        conf_pal2 = F.softmax(conf_pal2,dim=2)
+        priors_pal2 = priors_pal2.type(type(torch.Tensor()))
+
+        y = self._detect(loc_pal2, conf_pal2, priors_pal2)
+        return y 
+
+    def _detect(self, loc_data, conf_data, prior_data):
         """
         Args:
             loc_data: (tensor) Loc preds from loc layers

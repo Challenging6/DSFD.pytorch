@@ -1,4 +1,5 @@
-import os
+import os,sys 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import torch
 import argparse
 import torch.nn as nn
@@ -16,7 +17,7 @@ from data.config import cfg
 from models.factory import build_net
 from torch.autograd import Variable
 from utils.augmentations import to_chw_bgr
-
+from layers import *
 
 parser = argparse.ArgumentParser(description='dsfd evaluatuon wider')
 parser.add_argument('--network',
@@ -25,7 +26,7 @@ parser.add_argument('--network',
                     help='model for training')
 parser.add_argument('--model',
                     type=str,
-                    default='weights/dsfd_face.pth', help='trained model')
+                    default='weights/dsfd_vgg_0.880.pth', help='trained model')
 parser.add_argument('--thresh', default=0.05, type=float,
                     help='Final confidence threshold')
 args = parser.parse_args()
@@ -38,7 +39,7 @@ if use_cuda:
 else:
     torch.set_default_tensor_type('torch.FloatTensor')
 
-
+detecor = Detector(cfg)
 def detect_face(net, img, shrink):
     if shrink != 1:
         img = cv2.resize(img, None, None, fx=shrink, fy=shrink,
@@ -53,8 +54,10 @@ def detect_face(net, img, shrink):
 
     if use_cuda:
         x = x.cuda()
-    # print(x.size())
-    y = net(x)
+    with torch.no_grad():
+        output = net(x)
+        y = detecor.detect(output)
+        
     detections = y.data
     detections = detections.cpu().numpy()
 
@@ -154,6 +157,50 @@ def bbox_vote(det):
     dets = dets[0:750, :]
     return dets
 
+def bbox_vote_new(det):
+    order = det[:, 4].ravel().argsort()[::-1]
+    det = det[order, :]
+    if det.shape[0] == 1:
+        return det
+
+    flag = 0
+    while det.shape[0] > 0:
+        # IOU
+        area = (det[:, 2] - det[:, 0] + 1) * (det[:, 3] - det[:, 1] + 1)
+        xx1 = np.maximum(det[0, 0], det[:, 0])
+        yy1 = np.maximum(det[0, 1], det[:, 1])
+        xx2 = np.minimum(det[0, 2], det[:, 2])
+        yy2 = np.minimum(det[0, 3], det[:, 3])
+        w = np.maximum(0.0, xx2 - xx1 + 1)
+        h = np.maximum(0.0, yy2 - yy1 + 1)
+        inter = w * h
+        o = inter / (area[0] + area[:] - inter)
+
+        # get needed merge det and delete these det
+        merge_index = np.where(o >= 0.3)[0]
+        det_accu = det[merge_index, :]
+        det = np.delete(det, merge_index, 0)
+
+        if merge_index.shape[0] <= 1:
+            continue
+        flag = 1
+        det_accu[:, 0:4] = det_accu[:, 0:4] * np.tile(det_accu[:, -1:], (1, 4))
+        max_score = np.max(det_accu[:, 4])
+        det_accu_sum = np.zeros((1, 5))
+        det_accu_sum[:, 0:4] = np.sum(
+            det_accu[:, 0:4], axis=0) / np.sum(det_accu[:, -1:])
+        det_accu_sum[:, 4] = max_score
+        try:
+            dets = np.row_stack((dets, det_accu_sum))
+        except:
+            dets = det_accu_sum
+    if flag == 1:
+        dets = dets[0:750, :]
+    else:
+        dets = np.array([[0,0,0,0,0]])
+        print("can not find any face...........")
+    return dets
+
 
 def get_data():
     subset = 'val'
@@ -188,12 +235,12 @@ if __name__ == '__main__':
 
     for index, event in enumerate(event_list):
         filelist = file_list[index][0]
-        path = os.path.join(save_path, event[0][0].encode('utf-8'))
+        path = os.path.join(save_path, event[0][0])
         if not os.path.exists(path):
             os.makedirs(path)
 
         for num, file in enumerate(filelist):
-            im_name = file[0][0].encode('utf-8')
+            im_name = file[0][0]
             in_file = os.path.join(imgs_path, event[0][0], im_name[:] + '.jpg')
             #img = cv2.imread(in_file)
             img = Image.open(in_file)
@@ -214,15 +261,13 @@ if __name__ == '__main__':
             [det2, det3] = multi_scale_test(net, img, max_im_shrink)
 
             det = np.row_stack((det0, det1, det2, det3))
-            dets = bbox_vote(det)
+            dets = bbox_vote_new(det)
 
             t2 = time.time()
             print('Detect %04d th image costs %.4f' % (counter, t2 - t1))
 
-            fout = open(osp.join(save_path, event[0][
-                        0].encode('utf-8'), im_name + '.txt'), 'w')
-            fout.write('{:s}\n'.format(event[0][0].encode(
-                'utf-8') + '/' + im_name + '.jpg'))
+            fout = open(osp.join(save_path, event[0][0], im_name + '.txt'), 'w')
+            fout.write('{:s}\n'.format(event[0][0] + '/' + im_name + '.jpg'))
             fout.write('{:d}\n'.format(dets.shape[0]))
             for i in range(dets.shape[0]):
                 xmin = dets[i][0]

@@ -46,17 +46,7 @@ else:
 
 detector = Detector(cfg)
 
-def post_process(output):
 
-    loc_pal2, conf_pal2, priors_pal2 = output[3], output[4], output[5]
-
-    loc_pal2 = loc_pal2.view(loc_pal2.size(0), -1, 4)
-    conf_pal2 = conf_pal2.view(conf_pal2.size(0), -1, cfg.NUM_CLASSES)
-    conf_pal2 = F.softmax(conf_pal2,dim=2)
-    priors_pal2 = priors_pal2.type(type(torch.Tensor()))
-
-    y = detector.detect(loc_pal2, conf_pal2, priors_pal2)
-    return y 
 
     
 
@@ -83,7 +73,7 @@ def detect(net, img_path, thresh):
     t1 = time.time()
     with torch.no_grad():
         output = net(x)
-        y = post_process(output)
+        y = detector.detect(output)
 
 
 
@@ -93,7 +83,6 @@ def detect(net, img_path, thresh):
 
     img = cv2.imread(img_path, cv2.IMREAD_COLOR)
 
-   # print(detections.shape)
     for i in range(detections.size(1)):
         j = 0
         while j < detections.size(2) and detections[0, i, j, 0] >= thresh:

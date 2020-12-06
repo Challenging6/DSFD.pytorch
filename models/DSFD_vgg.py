@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
+from torchvision.models import vgg16
 
 from layers import *
 from data.config import cfg
@@ -91,9 +92,6 @@ class DSFD(nn.Module):
         self.loc_pal2 = nn.ModuleList(head2[0])
         self.conf_pal2 = nn.ModuleList(head2[1])
 
-        # if self.phase=='test':
-        #     self.softmax = nn.Softmax(dim=-1)
-        #     self.detector = Detector(cfg)
 
     def _upsample_prod(self, x, y):
         _, _, H, W = y.size()
@@ -204,14 +202,6 @@ class DSFD(nn.Module):
 
         priorbox = PriorBox(size, features_maps, cfg, pal=2)
         self.priors_pal2 = priorbox.forward()
-
-        #print(type(x.data))
-        # if self.phase == 'test':
-        #     output = self.detector.detect(loc_pal2.view(loc_pal2.size(0), -1, 4),
-        #         self.softmax(conf_pal2.view(conf_pal2.size(0),-1,self.num_classes)),  # conf preds
-        #         self.priors_pal2.type(type(x.data))
-        #     )
-
         
         output = (
             loc_pal1.view(loc_pal1.size(0), -1, 4),

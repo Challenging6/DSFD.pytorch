@@ -51,8 +51,8 @@ parser.add_argument('--save_folder',
                     help='Directory for saving checkpoint models')
 args = parser.parse_args()
 
-if not args.multigpu:
-    os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+#if not args.multigpu:
+#    os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 if torch.cuda.is_available():
     if args.cuda:
@@ -104,13 +104,13 @@ def train():
         print('Resuming training, loading {}...'.format(args.resume))
         start_epoch = net.load_weights(args.resume)
         iteration = start_epoch * per_epoch_size
-    # else:
-    #     base_weights = torch.load(args.save_folder + basenet)
-    #     print('Load base network {}'.format(args.save_folder + basenet))
-    #     if args.model == 'vgg':
-    #         net.vgg.load_state_dict(base_weights)
-    #     else:
-    #         net.resnet.load_state_dict(base_weights)
+    else:
+        base_weights = torch.load(os.path.join('./weights/vgg16_reducedfc.pth'))
+        print('Load base network {}'.format(args.save_folder + basenet))
+        if args.model == 'vgg':
+            net.vgg.load_state_dict(base_weights)
+        else:
+            net.resnet.load_state_dict(base_weights)
 
     if args.cuda:
         if args.multigpu:
@@ -140,9 +140,10 @@ def train():
             step_index += 1
             adjust_learning_rate(optimizer, args.gamma, step_index)
 
-    net.train()
+    
     for epoch in range(start_epoch, cfg.EPOCHES):
         losses = 0
+        net.train()
         for batch_idx, (images, targets) in enumerate(train_loader):
             if args.cuda:
                 images = images.cuda()
@@ -184,6 +185,7 @@ def train():
                 file = 'dsfd_' + repr(iteration) + '.pth'
                 torch.save(dsfd_net.state_dict(),
                            os.path.join(save_folder, file))
+
             iteration += 1
 
         val(epoch, net, dsfd_net, criterion)
@@ -192,24 +194,27 @@ def train():
 
 
 def val(epoch, net, dsfd_net, criterion):
+    print('start eval..........')
     net.eval()
     step = 0
     losses = 0
     t1 = time.time()
-    for batch_idx, (images, targets) in enumerate(val_loader):
-        if args.cuda:
-            images = images.cuda()
-            targets = [ann.cuda() for ann in targets]
-        else:
-            images = images
-            targets = [ann for ann in targets]
+    with torch.no_grad():
+        for batch_idx, (images, targets) in enumerate(val_loader):
+            if args.cuda:
+                images = images.cuda()
+                targets = [ann.cuda() for ann in targets]
+            else:
+                images = images
+                targets = [ann for ann in targets]
+            
+            out = net(images)
+            loss_l_pa1l, loss_c_pal1 = criterion(out[:3], targets)
+            loss_l_pa12, loss_c_pal2 = criterion(out[3:], targets)
+            loss = loss_l_pa12 + loss_c_pal2
+            losses += loss.item()
+            step += 1
 
-        out = net(images)
-        loss_l_pa1l, loss_c_pal1 = criterion(out[:3], targets)
-        loss_l_pa12, loss_c_pal2 = criterion(out[3:], targets)
-        loss = loss_l_pa12 + loss_c_pal2
-        losses += loss.data[0]
-        step += 1
 
     tloss = losses / step
     t2 = time.time()
@@ -228,7 +233,7 @@ def val(epoch, net, dsfd_net, criterion):
         'weight': dsfd_net.state_dict(),
     }
     torch.save(states, os.path.join(save_folder, 'dsfd_checkpoint.pth'))
-
+    return 
 
 def adjust_learning_rate(optimizer, gamma, step):
     """Sets the learning rate to the initial LR decayed by 10 at every
